@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>大分食品価格ダッシュボード 🫙</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+  :root {
+    --onsen: #1a6b8a;
+    --kabosu: #7ab330;
+    --bg: #f4f8fb;
+    --card: #ffffff;
+    --border: #dde8ef;
+    --text: #1a2a33;
+    --sub: #5a7a8a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Zen Kaku Gothic New', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  .header {
+    background: linear-gradient(135deg, #0d4a6b 0%, #1a6b8a 50%, #2d9a7a 100%);
+    padding: 2rem 2rem 1.5rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::after { content: '🌋'; position: absolute; bottom: -10px; right: 20px; font-size: 80px; opacity: 0.12; }
+  .header h1 { font-size: 22px; font-weight: 900; color: white; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .header p { font-size: 12px; color: rgba(255,255,255,0.7); }
+  .header-badges { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .hbadge { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9); border: 1px solid rgba(255,255,255,0.2); }
+  .decor { font-size: 22px; margin-bottom: 6px; }
+  .tachikoma-area { margin: 1.5rem 1.5rem 0; display: flex; gap: 12px; align-items: flex-start; }
+  .tachi-icon { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #1a6b8a, #2d9a7a); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .tachi-bubble { background: white; border-radius: 12px 12px 12px 4px; padding: 12px 16px; font-size: 13px; color: var(--text); line-height: 1.7; border: 1px solid var(--border); flex: 1; }
+  .main { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+  .card { background: white; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; }
+  .card-header { padding: 14px 16px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 700; color: var(--onsen); }
+  .card-body { padding: 16px; }
+  .api-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .api-row input { flex: 1; min-width: 180px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Share Tech Mono', monospace; outline: none; background: #f9fbfc; }
+  .api-row input:focus { border-color: var(--onsen); }
+  select { flex: 1; min-width: 150px; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: 'Zen Kaku Gothic New', sans-serif; outline: none; background: #f9fbfc; cursor: pointer; }
+  .btn { padding: 10px 20px; background: linear-gradient(135deg, #1a6b8a, #2d9a7a); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: 'Zen Kaku Gothic New', sans-serif; letter-spacing: 0.03em; }
+  .btn:active { transform: scale(0.97); }
+  .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  @media (min-width: 500px) { .metrics { grid-template-columns: repeat(4, 1fr); } }
+  .metric { background: linear-gradient(135deg, #f0f7fa, #e8f4f0); border-radius: 10px; padding: 14px; border: 1px solid var(--border); }
+  .metric-label { font-size: 11px; color: var(--sub); margin-bottom: 4px; letter-spacing: 0.05em; }
+  .metric-value { font-size: 20px; font-weight: 900; color: var(--onsen); }
+  .metric-value.up { color: #c0392b; }
+  .metric-value.down { color: #27ae60; }
+  .metric-sub { font-size: 10px; color: var(--sub); margin-top: 2px; }
+  .chart-wrap { position: relative; width: 100%; height: 240px; }
+  .legend { display: flex; gap: 16px; margin-bottom: 10px; font-size: 12px; color: var(--sub); flex-wrap: wrap; }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 12px; height: 4px; border-radius: 2px; display: inline-block; }
+  .comment-card { background: linear-gradient(135deg, #fff8f0, #fff3ea); border: 1px solid #f5d5b8; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #6b3a1a; line-height: 1.7; display: none; }
+  .comment-card.active { display: block; }
+  .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: #f0f7fa; border-top: 1px solid var(--border); font-size: 11px; color: var(--sub); }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #e8f4fa; color: var(--onsen); }
+  .badge.up { background: #fde8e8; color: #c0392b; }
+  .badge.down { background: #e8fde8; color: #27ae60; }
+  .loading-overlay { display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.9); align-items: center; justify-content: center; font-size: 14px; color: var(--onsen); border-radius: 8px; z-index: 10; font-weight: 700; }
+  .loading-overlay.active { display: flex; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="decor">🌊🍋🐟</div>
+  <h1>大分食品価格ダッシュボード 🫙</h1>
+  <p>e-Stat 小売物価統計 × 大分市 (44201) — 毎月更新データ</p>
+  <div class="header-badges">
+    <span class="hbadge">温泉県おおいた</span>
+    <span class="hbadge">関さば・関あじの地</span>
+    <span class="hbadge">かぼすの里</span>
+  </div>
+</div>
+
+<div class="tachikoma-area">
+  <div class="tachi-icon">🫙</div>
+  <div class="tachi-bubble" id="tachi-msg">
+    よぉ来たな！APIキー入れて品目選んだら、大分の食品価格ば調べちゃるけん。かぼすより酸っぱいデータが出るかもしれんで、覚悟しとって🫙
+  </div>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-header">🔑 e-Stat APIキー設定</div>
+    <div class="card-body">
+      <div class="api-row">
+        <input type="password" id="api-key" placeholder="APIキーをペーストしてな" />
+        <select id="item-select">
+          <option value="0020010">米（5kg）</option>
+          <option value="0030010">食パン</option>
+          <option value="0040010">牛乳</option>
+          <option value="0060030">鶏卵（10個）</option>
+          <option value="0070020">キャベツ</option>
+          <option value="0070050">大根</option>
+          <option value="0090010">さけ（切身）</option>
+          <option value="0090040">あじ</option>
+          <option value="0100010">牛肉（国産）</option>
+          <option value="0100030">鶏肉</option>
+        </select>
+        <button class="btn" onclick="fetchData()">データ取得</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">最新価格</div>
+      <div class="metric-value" id="m-latest">—</div>
+      <div class="metric-sub" id="m-latest-date">データ未取得</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">前月比</div>
+      <div class="metric-value" id="m-mom">—</div>
+      <div class="metric-sub">Month over Month</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">前年同月比</div>
+      <div class="metric-value" id="m-yoy">—</div>
+      <div class="metric-sub">Year over Year</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">大分vs全国</div>
+      <div class="metric-value" id="m-diff">—</div>
+      <div class="metric-sub">価格差</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">📈 価格推移（直近13ヶ月）</div>
+    <div class="card-body">
+      <div class="legend" id="legend" style="display:none;">
+        <span><span class="legend-dot" style="background:#1a6b8a;"></span>大分市</span>
+        <span><span class="legend-dot" style="background:#aaa;"></span>全国平均</span>
+      </div>
+      <div class="chart-wrap">
+        <div class="loading-overlay" id="loading">🫙 大分のデータ取りに行きよるけん...</div>
+        <canvas id="priceChart"></canvas>
+      </div>
+    </div>
+    <div class="status-bar">
+      <span id="status-text">APIキーを入力してデータを取得してな</span>
+      <span class="badge" id="status-badge"></span>
+    </div>
+  </div>
+
+  <div class="comment-card" id="comment-card"></div>
+</div>
+
+<script>
+let chart = null;
+const tachiMessages = {
+  loading: "ちょっと待っとって！大分のデータば取りに行きよるけん🫙",
+  success_normal: "取れたで！価格は安定しとるみたいやな。よかよか🫙",
+  success_up: "うわ、値上がりしとる！家計に響くけんな、気ぃつけて🫙",
+  success_down: "値下がりしとるで！大分で買うたがおとくかもしれんな🫙",
+  error_cors: "CORSエラーやな。GitHub Pagesにあげて動かしてみてな🫙",
+  error: "あらら、データ取れんかった。APIキー合っとるか確認してみて🫙",
+  no_data: "このデータは大分市では調査されとらんかもしれんな🫙",
+};
+function setTachi(key) { document.getElementById('tachi-msg').textContent = tachiMessages[key] || tachiMessages.success_normal; }
+function formatTime(t) { const s = String(t); return `${s.slice(0,4)}/${parseInt(s.slice(6,8))}`; }
+function parseTime(t) { const s = String(t); return parseInt(s.slice(0,4))*100 + parseInt(s.slice(6,8)); }
+
+async function fetchData() {
+  const key = document.getElementById('api-key').value.trim();
+  const itemCode = document.getElementById('item-select').value;
+  const itemName = document.getElementById('item-select').selectedOptions[0].text;
+  if (!key) { setTachi('error'); document.getElementById('status-text').textContent = 'APIキーが入力されとらんで🫙'; return; }
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('status-text').textContent = 'データ取得中...';
+  document.getElementById('comment-card').classList.remove('active');
+  setTachi('loading');
+  try {
+    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${key}&statsDataId=0003421913&cdArea=44201,00000&cdCat01=${itemCode}&limit=40`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const values = json?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
+    if (!values || values.length === 0) { setTachi('no_data'); document.getElementById('loading').classList.remove('active'); document.getElementById('status-text').textContent = 'データなし'; return; }
+    const oitaVals = values.filter(v => v['@area']==='44201' && parseFloat(v['$'])>0).sort((a,b)=>parseTime(a['@time'])-parseTime(b['@time'])).slice(-13);
+    const natVals = values.filter(v => v['@area']==='00000' && parseFloat(v['$'])>0).sort((a,b)=>parseTime(a['@time'])-parseTime(b['@time'])).slice(-13);
+    if (oitaVals.length === 0) { setTachi('no_data'); document.getElementById('loading').classList.remove('active'); return; }
+    const labels = oitaVals.map(v => formatTime(v['@time']));
+    const oitaPrices = oitaVals.map(v => parseFloat(v['$']));
+    const natPrices = natVals.map(v => parseFloat(v['$']));
+    const latest = oitaPrices[oitaPrices.length-1];
+    const prev = oitaPrices.length>=2 ? oitaPrices[oitaPrices.length-2] : latest;
+    const yearAgo = oitaPrices[0];
+    const natLatest = natPrices.length>0 ? natPrices[natPrices.length-1] : latest;
+    const mom = ((latest-prev)/prev*100).toFixed(1);
+    const yoy = ((latest-yearAgo)/yearAgo*100).toFixed(1);
+    const diff = (latest-natLatest).toFixed(0);
+    const momNum = parseFloat(mom);
+    const yoyNum = parseFloat(yoy);
+    document.getElementById('m-latest').textContent = `¥${Math.round(latest).toLocaleString()}`;
+    document.getElementById('m-latest-date').textContent = formatTime(oitaVals[oitaVals.length-1]['@time']);
+    const mMom = document.getElementById('m-mom');
+    mMom.textContent = `${momNum>0?'+':''}${mom}%`;
+    mMom.className = `metric-value ${momNum>0?'up':momNum<0?'down':''}`;
+    const mYoy = document.getElementById('m-yoy');
+    mYoy.textContent = `${yoyNum>0?'+':''}${yoy}%`;
+    mYoy.className = `metric-value ${yoyNum>0?'up':yoyNum<0?'down':''}`;
+    const mDiff = document.getElementById('m-diff');
+    mDiff.textContent = `${diff>0?'+':''}¥${diff}`;
+    mDiff.className = `metric-value ${diff>0?'up':diff<0?'down':''}`;
+    let commentMsg = `${itemName}の価格は安定しとるな。大分の食生活は安泰やで🫙`;
+    if (momNum>=5) commentMsg = `${itemName}が前月より5%以上値上がりしとる！かぼすが酸っぱなるより痛いわ🫙`;
+    else if (momNum>=3) commentMsg = `${itemName}、少し値上がりしとるな。別府の温泉で気ぃ晴らしてきたら🫙`;
+    else if (momNum<=-5) commentMsg = `${itemName}かなり値下がりしとる！大分の食材は新鮮でお得やけん今が買い時やで🫙`;
+    else if (momNum<=-3) commentMsg = `${itemName}値下がりしとるで！とり天食べながら節約できるな🫙`;
+    const cc = document.getElementById('comment-card');
+    cc.textContent = commentMsg; cc.classList.add('active');
+    if (momNum>3) setTachi('success_up');
+    else if (momNum<-3) setTachi('success_down');
+    else setTachi('success_normal');
+    if (chart) chart.destroy();
+    const datasets = [{
+      label:'大分市', data:oitaPrices, borderColor:'#1a6b8a', backgroundColor:'rgba(26,107,138,0.07)',
+      borderWidth:2.5, pointRadius:4, pointBackgroundColor:'#1a6b8a', tension:0.35, fill:true,
+    }];
+    if (natPrices.length>0) datasets.push({ label:'全国平均', data:natPrices, borderColor:'#aaa', backgroundColor:'transparent', borderWidth:1.5, borderDash:[5,5], pointRadius:2, tension:0.35 });
+    chart = new Chart(document.getElementById('priceChart'), {
+      type:'line', data:{labels,datasets},
+      options:{ responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ¥${Math.round(ctx.parsed.y).toLocaleString()}`}}},
+        scales:{
+          x:{ticks:{autoSkip:true,maxTicksLimit:7,font:{size:11}},grid:{display:false}},
+          y:{ticks:{font:{size:11},callback:v=>`¥${Math.round(v).toLocaleString()}`},grid:{color:'rgba(128,128,128,0.08)'}}
+        }
+      }
+    });
+    document.getElementById('legend').style.display='flex';
+    document.getElementById('status-text').textContent=`出典: 総務省統計局 小売物価統計 | ${formatTime(oitaVals[oitaVals.length-1]['@time'])}時点`;
+    const badge=document.getElementById('status-badge');
+    badge.textContent=momNum>0?`前月比 +${mom}%`:`前月比 ${mom}%`;
+    badge.className=`badge ${momNum>2?'up':momNum<-2?'down':''}`;
+  } catch(e) {
+    if (e.name==='TypeError') { setTachi('error_cors'); document.getElementById('status-text').textContent='CORS制限: GitHub Pagesで動かしてな🫙'; }
+    else { setTachi('error'); document.getElementById('status-text').textContent='エラー: '+e.message; }
+  } finally {
+    document.getElementById('loading').classList.remove('active');
+  }
+}
+</script>
+</body>
+</html>
