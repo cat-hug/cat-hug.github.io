@@ -176,7 +176,7 @@ async function fetchData() {
   document.getElementById('comment-card').classList.remove('active');
   setTachi('loading');
   try {
-    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${key}&statsDataId=0003421913&cdArea=44201,00000&cdCat01=${itemCode}&limit=40`;
+    const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${key}&statsDataId=0003421913&cdArea=44201,00000&cdCat01=0020&cdCat02=01001&limit=40`;
     const res = await fetch(url);
     const json = await res.json();
     console.log("Raw JSON:", json);
