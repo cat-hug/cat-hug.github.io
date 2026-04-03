@@ -179,6 +179,8 @@ async function fetchData() {
     const url = `https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId=${key}&statsDataId=0003421913&cdArea=44201,00000&cdCat01=${itemCode}&limit=40`;
     const res = await fetch(url);
     const json = await res.json();
+    console.log("Raw JSON:", json);
+console.log("Values:", json?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE);
     const values = json?.GET_STATS_DATA?.STATISTICAL_DATA?.DATA_INF?.VALUE;
     if (!values || values.length === 0) { setTachi('no_data'); document.getElementById('loading').classList.remove('active'); document.getElementById('status-text').textContent = 'データなし'; return; }
     const oitaVals = values.filter(v => v['@area']==='44201' && parseFloat(v['$'])>0).sort((a,b)=>parseTime(a['@time'])-parseTime(b['@time'])).slice(-13);
